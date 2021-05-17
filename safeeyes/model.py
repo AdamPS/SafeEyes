@@ -126,6 +126,19 @@ class BreakQueue:
         shorts = self.__short_queue
         longs  = self.__long_queue
 
+        # Reset break that has just ended
+        if self.is_long_break():
+            self.__current_break.time = self.__long_break_time
+            if self.__current_long == 0 and self.__is_random_order:
+                # Shuffle queue
+                self.__build_longs()
+        elif self.__current_break:
+            # Reduce the break time from the next long break (default)
+            if longs:
+                longs[self.__current_long].time -= shorts[self.__current_short].time
+            if self.__current_short == 0 and self.__is_random_order:
+                self.__build_shorts()
+
         if self.is_empty():
             return None
 
@@ -149,11 +162,6 @@ class BreakQueue:
         else:
             self.context['new_cycle'] = False
 
-        if self.__current_break is not None:
-            # Reset the time of long breaks
-            if self.__current_break.type == BreakType.LONG_BREAK:
-                self.__current_break.time = self.__long_break_time
-
         self.__current_break = break_obj
         self.context['session']['break'] = self.__current_break.name
 
@@ -162,7 +170,7 @@ class BreakQueue:
     def reset(self):
         for break_object in self.__short_queue:
             break_object.time = self.__short_break_time
-        
+
         for break_object in self.__long_queue:
             break_object.time = self.__long_break_time
 
@@ -174,16 +182,9 @@ class BreakQueue:
         shorts = self.__short_queue
         break_obj = shorts[self.__current_short]
         self.context['break_type'] = 'short'
-        # Reduce the break time from the next long break (default)
-        if longs:
-            longs[self.__current_long].time -= shorts[self.__current_short].time
 
         # Update the index to next
         self.__current_short = (self.__current_short + 1) % len(shorts)
-
-        # Shuffle queue
-        if self.__current_short == 0 and self.__is_random_order:
-            self.__build_shorts()
 
         self.__shorts_taken += 1
         return break_obj
@@ -195,10 +196,6 @@ class BreakQueue:
 
         # Update the index to next
         self.__current_long = (self.__current_long + 1) % len(longs)
-
-        # Shuffle queue
-        if self.__current_long == 0 and self.__is_random_order:
-            self.__build_longs()
 
         return break_obj
 
